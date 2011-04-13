@@ -32,21 +32,28 @@ class Game(p1: Strategy, p2: Strategy) {
     def f(b: Board.FinishedBoard) = b
   }
   @tailrec
-  private def playOut(b: Board, p: Position, mr: MoveResult): Board.FinishedBoard = {
+  private def playOut(b: Board, p: Position, mr: MoveResult, trace: BoardLike => Unit): Board.FinishedBoard = {
     if (mr.keepPlaying.isNone) {
       mr.fold(occupied(b, p), keepPlay, gOver)
     } else {
       val nb = mr.keepPlaying.some
-      //printBoard(nb)
+      trace(nb)
       val np = nextMove(nb)
       val nr = nb.moveTo(np)
-      playOut(nb, np, nr)
+      playOut(nb, np, nr, trace)
     }
   }
   def play: Board.FinishedBoard = {
     val fb = p1.firstMove
     val pos = nextMove(fb)
     val mr = fb.moveTo(pos)
-    playOut(fb, pos, mr)
+    playOut(fb, pos, mr, {_ => Unit})
+  }
+  def playTrace(trace: BoardLike => Unit): Board.FinishedBoard = {
+    val fb = p1.firstMove
+    trace(fb)
+    val pos = nextMove(fb)
+    val mr = fb.moveTo(pos)
+    playOut(fb, pos, mr, trace)
   }
 }

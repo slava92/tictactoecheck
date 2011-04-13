@@ -5,20 +5,26 @@ import tictactoe.Game
 import tictactoe.GameResult._
 import tictactoe.RandomMoves
 import tictactoe.JohnDoe
+import tictactoe.JaneDoe
 import tictactoe.Strategy
 
 object PlayTest {
 
   def main(args: Array[String]): Unit = {
-    val s1 = JohnDoe
+    //val s1 = JohnDoe
+    val s1 = JaneDoe
     val s2 = RandomMoves
-    tourney(s1, s2, 10)
-    //oneGame(s1,s2)
+    tourney(s1, s2, 1000)
+    //oneGame(s2,s1)
   }
 
   def oneGame(s1: Strategy, s2: Strategy) {
-    val result = new Game(s1,s2).play
+    val result = new Game(s1,s2).playTrace { b =>
+      printBoard(b)
+      println
+    }
     printBoard(result)
+    println(result.result.toString)
   }
   def tourney(s1: Strategy, s2: Strategy, runs: Int) {
     val pits = (s1,s2) :: (s2,s1) :: Nil
