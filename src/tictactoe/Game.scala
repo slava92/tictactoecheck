@@ -3,6 +3,7 @@ package tictactoe
 import fj.F
 import fj.P
 import fj.P1
+import fj.data.{Either => Er}
 import scala.annotation.tailrec
 import Player._
 
@@ -55,5 +56,28 @@ class Game(p1: Strategy, p2: Strategy) {
     val pos = nextMove(fb)
     val mr = fb.moveTo(pos)
     playOut(fb, pos, mr, trace)
+  }
+
+  private def wrongMove(b: Board, p: Position): P1[Er[String,Board.FinishedBoard]] = {
+    ///ttt.PlayTest.printBoard(b)
+    P.p(Er.left("Player "++b.whoseTurn.toString++" attempted to move to occupied position "++p.toString))
+  }
+  private val gor: F[Board.FinishedBoard,Er[String,Board.FinishedBoard]] = new F[Board.FinishedBoard,Er[String,Board.FinishedBoard]]() {
+    def f(b: Board.FinishedBoard) = Er.right(b)
+  }
+  private val playBoard: F[Board,Er[String,Board.FinishedBoard]] = new F[Board,Er[String,Board.FinishedBoard]]() {
+    def f(b: Board): Er[String,Board.FinishedBoard] = {
+      val p = nextMove(b)
+      b.moveTo(p).fold(wrongMove(b,p), playBoard, gor)
+    }
+  }
+  def playIt: Board.FinishedBoard = {
+    val fb = p1.firstMove
+    val er = playBoard.f(fb)
+    if (er.isLeft) {
+      error(er.left.value)
+    } else {
+      er.right.value
+    }
   }
 }

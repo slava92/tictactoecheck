@@ -4,7 +4,7 @@ import tictactoe.BoardLike
 import tictactoe.Game
 import tictactoe.GameResult._
 import tictactoe.RandomMoves
-import tictactoe.JohnDoe
+//import tictactoe.JohnDoe
 import tictactoe.JaneDoe
 import tictactoe.Strategy
 
@@ -14,15 +14,16 @@ object PlayTest {
     //val s1 = JohnDoe
     val s1 = JaneDoe
     val s2 = RandomMoves
-    tourney(s1, s2, 1000)
-    //oneGame(s2,s1)
+    //tourney(s1, s2, 1000)
+    oneGame(s2,s1)
   }
 
   def oneGame(s1: Strategy, s2: Strategy) {
-    val result = new Game(s1,s2).playTrace { b =>
-      printBoard(b)
-      println
-    }
+//    val result = new Game(s1,s2).playTrace { b =>
+//      printBoard(b)
+//      println
+//    }
+    val result = new Game(s1,s2).playIt
     printBoard(result)
     println(result.result.toString)
   }
