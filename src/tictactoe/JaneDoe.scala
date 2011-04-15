@@ -39,19 +39,15 @@ object JaneDoe extends Strategy {
   }
   private def gameOver(p: Position): F[Board.FinishedBoard,Weight] = {
     new F[Board.FinishedBoard,Weight]() {
-      def f(b: Board.FinishedBoard) = {
-        if (b.result.isDraw) {
-          (0,p)
-        } else {
-          error("reached unreachable place")
-          //(BigBang-b.nmoves(),p)
-        }
+      def f(b: Board.FinishedBoard) = if (b.result.isDraw) {
+        (0,p)
+      } else {
+        error("reached unreachable place")
       }
     }
   }
-
-  def keepPl[T](r: T): F[Board,T] = { new F[Board,T]() { def f(b: Board) = r } }
-  def gameOv[T](r: FinishedBoard => T): F[FinishedBoard,T] =
+  private def keepPl[T](r: T): F[Board,T] = { new F[Board,T]() { def f(b: Board) = r } }
+  private def gameOv[T](r: FinishedBoard => T): F[FinishedBoard,T] =
   { new F[Board.FinishedBoard,T]() { def f(b: Board.FinishedBoard) = r(b) } }
   private def weighPosition(b: Board, p: Position): Weight = {
     val isWinner: Boolean = b.moveTo(p).fold(P.p(false), keepPl(false), gameOv(_.result.isWin))
@@ -68,9 +64,6 @@ object JaneDoe extends Strategy {
     val freeSpots = Position.values.filter {b.playerAt(_).isNone}
     val weights = freeSpots.map {p => weighPosition(b, p)
     }.sortWith {_._1 < _._1}.reverse
-//    weights.foreach { wp =>
-//      printf(" > %s %s\n", wp._2.toString, wp._1.toString)
-//    }
     // position with highest weight
     weights(0)._2
   }
@@ -84,7 +77,7 @@ object JaneDoe extends Strategy {
     val tme: TM[JI,Player] = TM.empty(Ord.intOrd)
     val tms = pl.foldLeft(tme) { (tm,p) => tm.set(p._1.toInt,p._2) }
     val tb = new Board(Player.Player2, tms, 3)
-    ttt.PlayTest.printBoard(tb)
+    //ttt.PlayTest.printBoard(tb)
     printf("next move for %s: %s\n", tb.whoseTurn.toString, JaneDoe.nextPosition(tb).toString)
   }
 }

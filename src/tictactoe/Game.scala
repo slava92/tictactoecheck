@@ -4,13 +4,9 @@ import fj.F
 import fj.P
 import fj.P1
 import fj.data.{Either => Er}
-import scala.annotation.tailrec
 import Player._
 
 class Game(p1: Strategy, p2: Strategy) {
-  //val player2 = RandomMoves
-  //val player1 = FirstAvailableMove
-  //val player2 = FirstAvailableMove
 
   private def nextMove(b: Board) = {
     b.whoseTurn match {
@@ -18,62 +14,45 @@ class Game(p1: Strategy, p2: Strategy) {
       case Player2 => p2.nextPosition(b)
     }
   }
-  private def occupied(b: Board, p: Position): P1[Board.FinishedBoard] = {
-    val lb: Board.FinishedBoard = null
-    P.p(lb)
-  }
-  private val keepPlay: F[Board,Board.FinishedBoard] = new F[Board,Board.FinishedBoard]() {
-    def f(b: Board): Board.FinishedBoard = {
-      error("reached unreachable")
-      val lb: Board.FinishedBoard = null
-      lb
-    }
-  }
-  private val gOver: F[Board.FinishedBoard,Board.FinishedBoard] = new F[Board.FinishedBoard,Board.FinishedBoard]() {
-    def f(b: Board.FinishedBoard) = b
-  }
-  @tailrec
-  private def playOut(b: Board, p: Position, mr: MoveResult, trace: BoardLike => Unit): Board.FinishedBoard = {
-    if (mr.keepPlaying.isNone) {
-      mr.fold(occupied(b, p), keepPlay, gOver)
-    } else {
-      val nb = mr.keepPlaying.some
-      trace(nb)
-      val np = nextMove(nb)
-      val nr = nb.moveTo(np)
-      playOut(nb, np, nr, trace)
-    }
-  }
-  def play: Board.FinishedBoard = {
-    val fb = p1.firstMove
-    val pos = nextMove(fb)
-    val mr = fb.moveTo(pos)
-    playOut(fb, pos, mr, {_ => Unit})
-  }
-  def playTrace(trace: BoardLike => Unit): Board.FinishedBoard = {
-    val fb = p1.firstMove
-    trace(fb)
-    val pos = nextMove(fb)
-    val mr = fb.moveTo(pos)
-    playOut(fb, pos, mr, trace)
-  }
 
   private def wrongMove(b: Board, p: Position): P1[Er[String,Board.FinishedBoard]] = {
     ///ttt.PlayTest.printBoard(b)
     P.p(Er.left("Player "++b.whoseTurn.toString++" attempted to move to occupied position "++p.toString))
   }
-  private val gor: F[Board.FinishedBoard,Er[String,Board.FinishedBoard]] = new F[Board.FinishedBoard,Er[String,Board.FinishedBoard]]() {
+
+  private val gameOver = new F[Board.FinishedBoard,Er[String,Board.FinishedBoard]]() {
     def f(b: Board.FinishedBoard) = Er.right(b)
   }
-  private val playBoard: F[Board,Er[String,Board.FinishedBoard]] = new F[Board,Er[String,Board.FinishedBoard]]() {
+
+  private val keepPlaying: F[Board,Er[String,Board.FinishedBoard]] = new F[Board,Er[String,Board.FinishedBoard]]() {
     def f(b: Board): Er[String,Board.FinishedBoard] = {
       val p = nextMove(b)
-      b.moveTo(p).fold(wrongMove(b,p), playBoard, gor)
+      b.moveTo(p).fold(wrongMove(b,p), keepPlaying, gameOver)
     }
   }
+
   def playIt: Board.FinishedBoard = {
-    val fb = p1.firstMove
-    val er = playBoard.f(fb)
+    val er = keepPlaying.f(p1.firstMove)
+    if (er.isLeft) {
+      error(er.left.value)
+    } else {
+      er.right.value
+    }
+  }
+
+  def makeTraceBoard(trace: BoardLike => Unit, moveOn: => F[Board,Er[String,Board.FinishedBoard]]): F[Board,Er[String,Board.FinishedBoard]] =
+    new F[Board,Er[String,Board.FinishedBoard]]() {
+      def f(b: Board): Er[String,Board.FinishedBoard] = {
+        trace(b)
+        val p = nextMove(b)
+        b.moveTo(p).fold(wrongMove(b,p), moveOn, gameOver)
+      }
+    }
+
+  def traceIt(trace: BoardLike => Unit): Board.FinishedBoard = {
+    var tb: F[Board,Er[String,Board.FinishedBoard]] = null
+    tb = makeTraceBoard(trace, tb)
+    val er = tb.f(p1.firstMove)
     if (er.isLeft) {
       error(er.left.value)
     } else {
