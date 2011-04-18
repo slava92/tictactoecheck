@@ -6,6 +6,7 @@ import fj.P
 import Board._
 import Position._
 import Player._
+import FixedPoint.fjF
 import fj.data.{TreeMap => TM}
 import java.lang.{Integer => JI}
 
@@ -16,67 +17,58 @@ object JaneDoe extends Strategy {
   val corners = NW :: NE :: SW :: SE :: Nil
 
   def firstMove(): Board = {
-    Board.EmptyBoard.empty.moveTo(Position.C)
-  }
-  private def neutral(p: Position): F[Board,Weight] = {
-    new F[Board,Weight]() {
-      def f(b: Board): Weight = {
-        val freeSpots = Position.values.filter {b.playerAt(_).isNone}
-        val isWinner: Boolean = freeSpots.map { p2 =>
-          b.moveTo(p2).fold(P.p(false), keepPl(false), gameOv(_.result.isWin))
-        }.contains(true)
-        if (isWinner) {
-          (b.nmoves-BigBang,p)
-        } else {
-          if (corners.contains(p)) {
-            (2,p) // corners are perferable over sides
-          } else {
-            (1,p)
-          }
-        }
-      }
-    }
-  }
-  private def gameOver(p: Position): F[Board.FinishedBoard,Weight] = {
-    new F[Board.FinishedBoard,Weight]() {
-      def f(b: Board.FinishedBoard) = if (b.result.isDraw) {
-        (0,p)
-      } else {
-        error("reached unreachable place")
-      }
-    }
-  }
-  private def keepPl[T](r: T): F[Board,T] = { new F[Board,T]() { def f(b: Board) = r } }
-  private def gameOv[T](r: FinishedBoard => T): F[FinishedBoard,T] =
-  { new F[Board.FinishedBoard,T]() { def f(b: Board.FinishedBoard) = r(b) } }
-  private def weighPosition(b: Board, p: Position): Weight = {
-    val isWinner: Boolean = b.moveTo(p).fold(P.p(false), keepPl(false), gameOv(_.result.isWin))
-    if (isWinner) {
-      (BigBang - b.nmoves,p)
-    } else {
-      b.moveTo(p).fold(P.p((Int.MinValue,p)),neutral(p),gameOver(p))
-    }
+    Board.EmptyBoard.empty.moveTo(C)
   }
   def nextPosition(b: Board): Position = {
-    if (b.playerAt(Position.C).isNone) {
-      return Position.C
+    if (b.playerAt(C).isNone) {
+      C
+    } else {
+      val weights = freeSpots(b).map {weighPosition(b, _)}.sortWith {
+        _._1 < _._1
+      }.reverse
+      // position with highest weight
+      //weights.map { bp => printf("NP: %s=%d\n", bp._2.toString, bp._1)}
+      weights(0)._2
     }
-    val freeSpots = Position.values.filter {b.playerAt(_).isNone}
-    val weights = freeSpots.map {p => weighPosition(b, p)
-    }.sortWith {_._1 < _._1}.reverse
-    // position with highest weight
-    weights(0)._2
   }
+
+  private def weighPosition(b: Board, p: Position): Weight = {
+    b.moveTo(p).fold(
+      P.p((Int.MinValue,p)),
+      weighNeutralMove(p),
+      fjF {b => if (b.result.isDraw) (0,p) else (BigBang - b.nmoves,p)}
+    )
+  }
+  private def weighNeutralMove(p: Position): F[Board,Weight] = new F[Board,Weight]() {
+    def f(b: Board): Weight = {
+      val isWinner: Boolean = freeSpots(b).map { p2 =>
+        b.moveTo(p2).fold(P.p(false), fjF(_=>false), fjF(_.result.isWin))
+      }.contains(true)
+      if (isWinner) {
+        (b.nmoves-BigBang,p)
+      } else if (corners.contains(p)) {
+        (2,p) // corners are perferable over sides
+      } else {
+        (1,p)
+      }
+    }
+  }
+  private def freeSpots(b: Board) = Position.values.filter {b.playerAt(_).isNone}
 
   def main(args: Array[String]): Unit = {
 // _ _ _
 // O X _
 // X _ _
     //val pl: List[(Position,Player)] = (W,Player2) :: (C,Player1) :: (SW,Player1) :: Nil
-    val pl: List[(Position,Player)] = (C,Player1) :: Nil
+    //val pl: List[(Position,Player)] = (C,Player1) :: Nil
+// X _ X
+// _ O _
+// O _ X
+    //val pl: List[(Position,Player)] = (NW,Player1)::(NE,Player1)::(C,Player2)::(SW,Player2)::(SW,Player1)::Nil
+    val pl: List[(Position,Player)] = (NW,Player1) :: (C,Player2) :: (SE,Player1) :: Nil
     val tme: TM[JI,Player] = TM.empty(Ord.intOrd)
     val tms = pl.foldLeft(tme) { (tm,p) => tm.set(p._1.toInt,p._2) }
-    val tb = new Board(Player.Player2, tms, 3)
+    val tb = new Board(Player.Player2, tms, 5)
     //ttt.PlayTest.printBoard(tb)
     printf("next move for %s: %s\n", tb.whoseTurn.toString, JaneDoe.nextPosition(tb).toString)
   }

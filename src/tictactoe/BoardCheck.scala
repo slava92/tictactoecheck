@@ -59,21 +59,16 @@ object BoardCheck {
     val tme: TM[JI,Player] = TM.empty(Ord.intOrd)
     val tms = pl.foldLeft(tme) { (tm,p) => tm.set(p._1.toInt,p._2) }
     val tb = new Board(Player.Player2, tms, 1)
-    printBoard(tb)
+    FixedPoint.printBoard(tb)
     val mr = tb.moveTo(N)
     val r = mr.fold(P.p(false), MoveResultCheck.keepPl(false), gameOv(true))
     println("result of move to N = "++r.toString)
   }
   def gameOv(r: Boolean): F[Board.FinishedBoard,Boolean] = {
     new F[Board.FinishedBoard,Boolean]() { def f(b: Board.FinishedBoard) = {
-        printBoard(b); println("game result = "++b.result.toString)
+        FixedPoint.printBoard(b); println("game result = "++b.result.toString)
         r
       }
     }
-  }
-
-  def printBoard(b: BoardLike) {
-    print(b.toString(ttt.Main.simpleCharsF))
-    println("Next move: "++b.whoseTurn.toString)
   }
 }

@@ -1,5 +1,7 @@
 package tictactoe
 
+import fj.F
+
 class FixedPoint[A,B] {
   //fix :: (a -> a) -> a
   //fix f = let x = f x in x
@@ -19,5 +21,13 @@ object FixedPoint {
     }
     val fc5 = fp.fix(factorial)(5)
     printf("f5=%s\n", fc5)
+  }
+
+  def fjF[B,T](r: B => T): F[B,T] = {
+    new F[B,T]() { def f(b: B) = r(b) }
+  }
+
+  def printBoard(b: BoardLike) {
+    print(b.toString(ttt.Main.simpleCharsF))
   }
 }

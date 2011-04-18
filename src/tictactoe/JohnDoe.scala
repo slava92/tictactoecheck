@@ -15,7 +15,7 @@ object JohnDoe extends Strategy {
   val BigBang = 100
 
   def firstMove(): Board = {
-    Board.EmptyBoard.empty.moveTo(Position.C)
+    Board.EmptyBoard.empty.moveTo(NW)
   }
   private def neutral(p: Position, s: Int): F[Board,Weight] = {
     new F[Board,Weight]() {
@@ -34,11 +34,6 @@ object JohnDoe extends Strategy {
           (0,p)
         else {
           error("Unreachable state has been reached")
-//          if (-1 < b.nmoves) {
-//            println("XXXXXXXXX")
-//            ttt.PlayTest.printBoard(b)
-//            println("XXXXXXXXX")
-//          }
           ((BigBang-b.nmoves())*s,p)
         }
       }
@@ -54,26 +49,19 @@ object JohnDoe extends Strategy {
       return (BigBang - b.nmoves,p)
     }
     val wp = b.moveTo(p).fold(P.p((Int.MinValue,p)),neutral(p,-1),gameOver(p,1))
-//    if (b.nmoves == 0) {
-//      println("=========")
-//      ttt.PlayTest.printBoard(b)
-//      printf("%2s %s\n", wp._2.toString, wp._1.toString)
-//      println("=========")
-//    }
     wp
   }
   def nextPosition(b: Board): Position = {
     if (b.playerAt(Position.C).isNone) {
       return Position.C
     }
+    if (2 == b.occupiedPositions.length && b.playerAt(SE).isNone) {
+      return SE
+    }
     val weights = Position.values.filter {b.playerAt(_).isNone
     }.map {p => weighPosition(b, p, 1)
     }.sortWith {_._1 < _._1}.reverse
     weights.foreach { wp =>
-//      println("_________")
-//      ttt.PlayTest.printBoard(b)
-//      printf("%2s %s\n", wp._2.toString, wp._1.toString)
-//      println("_________")
     }
 //    printf("%2s %s\n", weights(0)._2.toString, weights(0)._1.toString)
     weights(0)._2
@@ -83,11 +71,12 @@ object JohnDoe extends Strategy {
 // _ _ _
 // O X _
 // X _ _
-    val pl: List[(Position,Player)] = (W,Player2) :: (C,Player1) :: (SW,Player1) :: Nil
+    //val pl: List[(Position,Player)] = (W,Player2) :: (C,Player1) :: (SW,Player1) :: Nil
+    val pl: List[(Position,Player)] = (NW,Player1) :: (C,Player2) :: (SE,Player1) :: (W,Player2) :: Nil
     val tme: TM[JI,Player] = TM.empty(Ord.intOrd)
     val tms = pl.foldLeft(tme) { (tm,p) => tm.set(p._1.toInt,p._2) }
-    val tb = new Board(Player.Player2, tms, 3)
-    ttt.PlayTest.printBoard(tb)
+    val tb = new Board(Player.Player1, tms, 3)
+    FixedPoint.printBoard(tb)
     printf("next move for %s: %s\n", tb.whoseTurn.toString, JohnDoe.nextPosition(tb).toString)
   }
 }
