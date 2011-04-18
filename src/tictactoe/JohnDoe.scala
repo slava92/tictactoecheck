@@ -6,6 +6,8 @@ import fj.P
 import Board._
 import Position._
 import Player._
+import Game.freeSpots
+import FixedPoint.fjF
 import fj.data.{TreeMap => TM}
 import java.lang.{Integer => JI}
 
@@ -17,38 +19,22 @@ object JohnDoe extends Strategy {
   def firstMove(): Board = {
     Board.EmptyBoard.empty.moveTo(NW)
   }
-  private def neutral(p: Position, s: Int): F[Board,Weight] = {
-    new F[Board,Weight]() {
-      def f(b: Board): Weight = {
-        val weights = Position.values.filter {b.playerAt(_).isNone
-        }.map {n => weighPosition(b, n, (-s))
-        }.sortWith {_._1 < _._1}.reverse
-        (0-weights(0)._1,p)
-      }
-    }
-  }
-  private def gameOver(p: Position, s: Int): F[Board.FinishedBoard,Weight] = {
-    new F[Board.FinishedBoard,Weight]() {
-      def f(b: Board.FinishedBoard) = {
-        if (b.result.isDraw)
-          (0,p)
-        else {
-          error("Unreachable state has been reached")
-          ((BigBang-b.nmoves())*s,p)
-        }
-      }
-    }
+  private def weighNeutralMove(p: Position): F[Board,Weight] = fjF { b =>
+    val weights = freeSpots(b).map {n => weighPosition(b, n)
+    }.sortWith {_._1 < _._1}.reverse
+    (0-weights(0)._1,p)
   }
 
-  def keepPl[T](r: T): F[Board,T] = { new F[Board,T]() { def f(b: Board) = r } }
-  def gameOv[T](r: FinishedBoard => T): F[FinishedBoard,T] =
-  { new F[Board.FinishedBoard,T]() { def f(b: Board.FinishedBoard) = r(b) } }
-  private def weighPosition(b: Board, p: Position, s: Int): Weight = {
-    val isWinner: Boolean = b.moveTo(p).fold(P.p(false), keepPl(false), gameOv(_.result.isWin))
+  private def weighPosition(b: Board, p: Position): Weight = {
+    val isWinner: Boolean = b.moveTo(p).fold(P.p(false), fjF(_=>false), fjF(_.result.isWin))
     if (isWinner) {
       return (BigBang - b.nmoves,p)
     }
-    val wp = b.moveTo(p).fold(P.p((Int.MinValue,p)),neutral(p,-1),gameOver(p,1))
+    val wp = b.moveTo(p).fold(
+      P.p((Int.MinValue,p)),
+      weighNeutralMove(p),
+      fjF {b => if (b.result.isDraw) (0,p) else (BigBang - b.nmoves,p)}
+    )
     wp
   }
   def nextPosition(b: Board): Position = {
@@ -58,8 +44,7 @@ object JohnDoe extends Strategy {
     if (2 == b.occupiedPositions.length && b.playerAt(SE).isNone) {
       return SE
     }
-    val weights = Position.values.filter {b.playerAt(_).isNone
-    }.map {p => weighPosition(b, p, 1)
+    val weights = freeSpots(b).map {p => weighPosition(b, p)
     }.sortWith {_._1 < _._1}.reverse
     weights.foreach { wp =>
     }

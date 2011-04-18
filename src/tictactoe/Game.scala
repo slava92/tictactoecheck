@@ -58,3 +58,9 @@ class Game(p1: Strategy, p2: Strategy) {
   }
   private val gameOver: F[FinishedBoard,EndResult] = fjF {Er.right(_)}
 }
+
+object Game {
+
+  def freeSpots(b: Board) = Position.values.filter {b.playerAt(_).isNone}
+
+}

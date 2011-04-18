@@ -6,6 +6,7 @@ import fj.P
 import Board._
 import Position._
 import Player._
+import Game.freeSpots
 import FixedPoint.fjF
 import fj.data.{TreeMap => TM}
 import java.lang.{Integer => JI}
@@ -39,21 +40,18 @@ object JaneDoe extends Strategy {
       fjF {b => if (b.result.isDraw) (0,p) else (BigBang - b.nmoves,p)}
     )
   }
-  private def weighNeutralMove(p: Position): F[Board,Weight] = new F[Board,Weight]() {
-    def f(b: Board): Weight = {
-      val isWinner: Boolean = freeSpots(b).map { p2 =>
-        b.moveTo(p2).fold(P.p(false), fjF(_=>false), fjF(_.result.isWin))
-      }.contains(true)
-      if (isWinner) {
-        (b.nmoves-BigBang,p)
-      } else if (corners.contains(p)) {
-        (2,p) // corners are perferable over sides
-      } else {
-        (1,p)
-      }
+  private def weighNeutralMove(p: Position): F[Board,Weight] = fjF { b =>
+    val isWinner: Boolean = freeSpots(b).map { p2 =>
+      b.moveTo(p2).fold(P.p(false), fjF(_=>false), fjF(_.result.isWin))
+    }.contains(true)
+    if (isWinner) {
+      (b.nmoves-BigBang,p)
+    } else if (corners.contains(p)) {
+      (2,p) // corners are perferable over sides
+    } else {
+      (1,p)
     }
   }
-  private def freeSpots(b: Board) = Position.values.filter {b.playerAt(_).isNone}
 
   def main(args: Array[String]): Unit = {
 // _ _ _
