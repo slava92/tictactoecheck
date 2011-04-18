@@ -2,7 +2,7 @@ package ttt
 
 import tictactoe.Game
 import tictactoe.GameResult._
-import tictactoe.RandomMoves
+//import tictactoe.RandomMoves
 import tictactoe.JohnDoe
 import tictactoe.JaneDoe
 import tictactoe.Strategy
@@ -30,7 +30,7 @@ object PlayTest {
   }
   def tourney(s1: Strategy, s2: Strategy, runs: Int) {
     //val pits = (s1,s2) :: (s2,s1) :: Nil
-    val pits = (s1,s2) :: (s1,s1) :: Nil
+    val pits = (s1,s2) :: (s1,s2) :: Nil
     val rss = pits.map { _ match {
         case (p1, p2) =>
           val game = new Game(p1, p2)

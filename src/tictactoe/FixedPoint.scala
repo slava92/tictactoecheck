@@ -7,7 +7,7 @@ class FixedPoint[A,B] {
   //fix f = let x = f x in x
   type T = A => B
   val fix: (T=>T)=>T = { f: (T=>T) =>
-    lazy val rec: T = f(rec)(_); f(rec)(_)
+    lazy val x: T = f(x)(_); f(x)(_)
   }
 }
 

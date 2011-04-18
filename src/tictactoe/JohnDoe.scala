@@ -1,6 +1,7 @@
 package tictactoe
 
 import fj.F
+import fj.F2
 import fj.Ord
 import fj.P
 import Board._
@@ -19,6 +20,21 @@ object JohnDoe extends Strategy {
   def firstMove(): Board = {
     Board.EmptyBoard.empty.moveTo(NW)
   }
+  def nextPosition(b: Board): Position = {
+    if (b.playerAt(Position.C).isNone) {
+      return Position.C
+    }
+    if (2 == b.occupiedPositions.length && b.playerAt(SE).isNone) {
+      return SE
+    }
+    val weights = freeSpots(b).map {p => weighPosition(b, p)
+    }.sortWith {_._1 < _._1}.reverse
+    weights.foreach { wp =>
+    }
+//    printf("%2s %s\n", weights(0)._2.toString, weights(0)._1.toString)
+    weights(0)._2
+  }
+
   private def weighNeutralMove(p: Position): F[Board,Weight] = fjF { b =>
     val weights = freeSpots(b).map {n => weighPosition(b, n)
     }.sortWith {_._1 < _._1}.reverse
@@ -36,20 +52,6 @@ object JohnDoe extends Strategy {
       fjF {b => if (b.result.isDraw) (0,p) else (BigBang - b.nmoves,p)}
     )
     wp
-  }
-  def nextPosition(b: Board): Position = {
-    if (b.playerAt(Position.C).isNone) {
-      return Position.C
-    }
-    if (2 == b.occupiedPositions.length && b.playerAt(SE).isNone) {
-      return SE
-    }
-    val weights = freeSpots(b).map {p => weighPosition(b, p)
-    }.sortWith {_._1 < _._1}.reverse
-    weights.foreach { wp =>
-    }
-//    printf("%2s %s\n", weights(0)._2.toString, weights(0)._1.toString)
-    weights(0)._2
   }
 
   def main(args: Array[String]): Unit = {
