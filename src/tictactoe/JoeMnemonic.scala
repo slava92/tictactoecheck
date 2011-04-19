@@ -16,11 +16,16 @@ object JoeMnemonic {
     val hmf = hm0 + (board2key(eb) -> p)
     if (eb.result.isDraw) (hmf,0,p) else (hmf,BigBang - eb.nmoves,p)
   }
+  def keepPlay: F[Board,(HashMap[String,Position], Int, Position)] = fjF {b =>
+    newPos.f(b) match {
+      case (hm, wt, p) => (hm, 0-wt, p)
+    }
+  }
   def newPos: F[Board,(HashMap[String,Position], Int, Position)] = fjF {b =>
     val nextLevel = freeSpots(b).map { p =>
       b.moveTo(p).fold(
         P.p((hm0,Int.MinValue,p)),
-        newPos,
+        keepPlay,
         endGame(p)
       )
     }.sortWith {_._2 < _._2}.reverse
@@ -32,7 +37,8 @@ object JoeMnemonic {
   }
 
   def collectMoves = {
-    val bs: Array[(HashMap[String,Position], Int, Position)] = Position.values.take(1).map { p =>
+    val bs: Array[(HashMap[String,Position], Int, Position)] = Position.values.take(1).map { p0 =>
+      val p = Position.NW
       printf("Analyzing %c (%s)\n", p.toChar, board2key(Board.EmptyBoard.empty.moveTo(p)))
       val np = newPos.f(Board.EmptyBoard.empty.moveTo(p))
       (np._1, np._2, p)
