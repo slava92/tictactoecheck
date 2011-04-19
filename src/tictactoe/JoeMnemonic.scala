@@ -10,45 +10,44 @@ import FixedPoint.fjF
 object JoeMnemonic {
   type Weight = (Int,Position)
   val BigBang = 100
+  val hm0: HashMap[String,Position] = HashMap.empty
+
+  def endGame(p: Position): F[Board.FinishedBoard,(HashMap[String,Position], Int, Position)] = fjF { eb =>
+    val hmf = hm0 + (board2key(eb) -> p)
+    if (eb.result.isDraw) (hmf,0,p) else (hmf,BigBang - eb.nmoves,p)
+  }
+  def newPos: F[Board,(HashMap[String,Position], Int, Position)] = fjF {b =>
+    val nextLevel = freeSpots(b).map { p =>
+      b.moveTo(p).fold(
+        P.p((hm0,Int.MinValue,p)),
+        newPos,
+        endGame(p)
+      )
+    }.sortWith {_._2 < _._2}.reverse
+    val recommend = nextLevel(0)._3
+    val hmn: HashMap[String,Position] = nextLevel.foldLeft(hm0) { (hm, tpl) =>
+      hm ++ tpl._1
+    } + (board2key(b) -> recommend)
+    (hmn, nextLevel(0)._2, recommend)
+  }
 
   def collectMoves = {
-    val eh: HashMap[Position,Board] = HashMap.empty
-    val cm = Position.values.foldLeft(eh) { (z,p) =>
-      z + ((p,Board.EmptyBoard.empty.moveTo(p)))
-    }
-    Position.values.foreach { p1 =>
-      val fb = Board.EmptyBoard.empty.moveTo(p1)
-      freeSpots(fb).foreach { p2 =>
-        val w = weighPosition(fb, p2)
-        printf("%s -> %s -> %s\n", board2key(fb), p2.toString, w)
-      }
-    }
-    cm
+    val bs: Array[(HashMap[String,Position], Int, Position)] = Position.values.take(1).map { p =>
+      printf("Analyzing %c (%s)\n", p.toChar, board2key(Board.EmptyBoard.empty.moveTo(p)))
+      val np = newPos.f(Board.EmptyBoard.empty.moveTo(p))
+      (np._1, np._2, p)
+    }.sortWith {_._2 < _._2}.reverse
+    val recommend = bs(0)._3
+    val hmn: HashMap[String,Position] = bs.foldLeft(hm0) { (hm, tpl) =>
+      hm ++ tpl._1
+    } + ("<0>" -> recommend)
+    (hmn, bs(0)._2, recommend)
   }
 
-  private def weighPosition(b: Board, p: Position): Weight = {
-    val isWinner: Boolean = b.moveTo(p).fold(P.p(false), fjF(_=>false), fjF(_.result.isWin))
-    if (isWinner) {
-      return (BigBang - b.nmoves,p)
-    }
-    val wp = b.moveTo(p).fold(
-      P.p((Int.MinValue,p)),
-      weighNeutralMove(p),
-      fjF {b => if (b.result.isDraw) (0,p) else (BigBang - b.nmoves,p)}
-    )
-    wp
-  }
-
-   private def weighNeutralMove(p: Position): F[Board,Weight] = fjF { b =>
-    val weights = freeSpots(b).map {n => weighPosition(b, n)
-    }.sortWith {_._1 < _._1}.reverse
-    (0-weights(0)._1,p)
-  }
-
- def board2key(b: Board): String = {
+  def board2key(b: BoardLike): String = {
     val bs = b.occupiedPositions.foldLeft(
       new F2[String,Position,String] { def f(z: String, p0: Position) = {
-          z + p0.toChar
+          z + p0.toChar + b.playerAt(p0).some().toSymbol
         }
       },
       "")
@@ -56,10 +55,10 @@ object JoeMnemonic {
   }
 
   def main(args: Array[String]): Unit = {
-    collectMoves.foreach { _ match {
-        case (p, b) =>
-          printf("%s moved to %s: %s\n", b.whoseNotTurn.toString, p.toString, board2key(b))
-      }
+    collectMoves match {
+      case (hm, wt, p) =>
+	printf("First move is %c (%d)\n", p.toChar, wt)
+	print(hm.mkString("\n"))
     }
   }
 }

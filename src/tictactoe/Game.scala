@@ -61,6 +61,6 @@ class Game(p1: Strategy, p2: Strategy) {
 
 object Game {
 
-  def freeSpots(b: Board) = Position.values.filter {b.playerAt(_).isNone}
+  def freeSpots(b: BoardLike) = Position.values.filter {b.playerAt(_).isNone}
 
 }
