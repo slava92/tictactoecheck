@@ -3,11 +3,24 @@ package tictactoe
 import fj.F
 import fj.F2
 import fj.P
+import fj.data.{TreeMap => TM}
+import fj.Ord
+import java.lang.{Integer => JI}
+
 import scala.collection.immutable.HashMap
 import Game.freeSpots
 import FixedPoint.fjF
+import Position._
+import Player._
 
-object JoeMnemonic {
+object JoeMnemonic extends Strategy {
+  def firstMove(): Board = {
+    Board.EmptyBoard.empty.moveTo(NW)
+  }
+  def nextPosition(b: Board): Position = {
+    game(board2key(b))
+  }
+
   type Weight = (Int,Position)
   val BigBang = 100
   val hm0: HashMap[String,Position] = HashMap.empty
@@ -37,8 +50,8 @@ object JoeMnemonic {
   }
 
   def collectMoves = {
-    val bs: Array[(HashMap[String,Position], Int, Position)] = Position.values.take(1).map { p0 =>
-      val p = Position.NW
+    val bs: Array[(HashMap[String,Position], Int, Position)] = Position.values.take(100).map { p =>
+      //val p = Position.NW
       printf("Analyzing %c (%s)\n", p.toChar, board2key(Board.EmptyBoard.empty.moveTo(p)))
       val np = newPos.f(Board.EmptyBoard.empty.moveTo(p))
       (np._1, np._2, p)
@@ -46,25 +59,61 @@ object JoeMnemonic {
     val recommend = bs(0)._3
     val hmn: HashMap[String,Position] = bs.foldLeft(hm0) { (hm, tpl) =>
       hm ++ tpl._1
-    } + ("<0>" -> recommend)
+    } + ("00" -> recommend)
     (hmn, bs(0)._2, recommend)
   }
 
   def board2key(b: BoardLike): String = {
     val bs = b.occupiedPositions.foldLeft(
       new F2[String,Position,String] { def f(z: String, p0: Position) = {
-          z + p0.toChar + b.playerAt(p0).some().toSymbol
+          p0.toChar +: b.playerAt(p0).some().toSymbol +: z
         }
       },
       "")
     bs
   }
 
+  val game = {
+    val gameIn = JoeMnemonic.getClass().getResourceAsStream("JoeMnemonic.game")
+    val game = scala.io.Source.fromInputStream(gameIn).getLines.foldLeft(hm0) { (b, a) =>
+      val ts = a.split(' ')
+      if (3 == ts.size) {
+	b + (ts(0) -> Position.valueOf(ts(2)))
+      } else {
+	printf("Malformed game line: '%s'\n", a)
+	b
+      }
+    }
+    game
+  }
+
   def main(args: Array[String]): Unit = {
-    collectMoves match {
-      case (hm, wt, p) =>
-	printf("First move is %c (%d)\n", p.toChar, wt)
+    if (true) {
+      //print(game.mkString("\n"))
+      print(game.size)
+    }
+    if (false) {
+// X O X
+// _ O _
+// O _ X
+      val pl: List[(Position,Player)] = (NW,Player1)::(N,Player2)::(NE,Player1)::(C,Player2)::(SW,Player2)::(SE,Player1)::Nil
+      val tme: TM[JI,Player] = TM.empty(Ord.intOrd)
+      val tms = pl.foldLeft(tme) { (tm,p) => tm.set(p._1.toInt,p._2) }
+      val tb = new Board(Player.Player1, tms, 6)
+      val r: (HashMap[String,Position], Int, Position) = newPos.f(tb)
+      r match {
+	case (hm, wt, p) =>
+	  printf("First move is %c (%d)\n", p.toChar, wt)
 	print(hm.mkString("\n"))
+      }
+    }
+
+    if (false) {
+      collectMoves match {
+	case (hm, wt, p) =>
+	  printf("First move is %c (%d)\n", p.toChar, wt)
+	print(hm.mkString("\n"))
+      }
     }
   }
 }

@@ -5,6 +5,7 @@ import tictactoe.GameResult._
 //import tictactoe.RandomMoves
 import tictactoe.JohnDoe
 import tictactoe.JaneDoe
+import tictactoe.JoeMnemonic
 import tictactoe.Strategy
 import tictactoe.FixedPoint
 
@@ -13,8 +14,9 @@ object PlayTest {
   def main(args: Array[String]): Unit = {
     //val s1 = JohnDoe
     //val s1 = RandomMoves
-    val s2 = JaneDoe
+    //val s2 = JaneDoe
     val s1 = JohnDoe
+    val s2 = JoeMnemonic
     oneGame(s1,s2)
     //tourney(s1, s2, 1000)
     //tourney(JaneDoe,RandomMoves, 5000)
