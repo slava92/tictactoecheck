@@ -38,7 +38,7 @@ object JoeMnemonic extends Strategy {
     val nextLevel = freeSpots(b).map { p =>
       b.moveTo(p).fold(
         P.p((hm0,Int.MinValue,p)),
-        keepPlay,
+        newPos,
         endGame(p)
       )
     }.sortWith {_._2 < _._2}.reverse
@@ -88,7 +88,7 @@ object JoeMnemonic extends Strategy {
   }
 
   def main(args: Array[String]): Unit = {
-    if (true) {
+    if (false) {
       //print(game.mkString("\n"))
       print(game.size)
     }
@@ -97,9 +97,19 @@ object JoeMnemonic extends Strategy {
 // _ O _
 // O _ X
       val pl: List[(Position,Player)] = (NW,Player1)::(N,Player2)::(NE,Player1)::(C,Player2)::(SW,Player2)::(SE,Player1)::Nil
+      val nextTurn = Player1
+// X _ _ 
+// _ X O 
+// _ _ _ 
+      //val pl: List[(Position,Player)] = (NW,Player1)::(C,Player1)::(E,Player2)::Nil
+      //val nextTurn = Player2
+      //val pl: List[(Position,Player)] = (NW,Player1)::Nil
+      //val nextTurn = Player2
+
       val tme: TM[JI,Player] = TM.empty(Ord.intOrd)
       val tms = pl.foldLeft(tme) { (tm,p) => tm.set(p._1.toInt,p._2) }
-      val tb = new Board(Player.Player1, tms, 6)
+      val tb = new Board(nextTurn, tms, 6)
+      FixedPoint.printBoard(tb)
       val r: (HashMap[String,Position], Int, Position) = newPos.f(tb)
       r match {
 	case (hm, wt, p) =>
@@ -108,7 +118,7 @@ object JoeMnemonic extends Strategy {
       }
     }
 
-    if (false) {
+    if (true) {
       collectMoves match {
 	case (hm, wt, p) =>
 	  printf("First move is %c (%d)\n", p.toChar, wt)
