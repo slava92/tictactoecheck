@@ -58,7 +58,7 @@ object BoardCheck {
     val pl: List[(Position,Player)] = (NW,Player2) :: (NE,Player2) :: (W,Player1) :: (E,Player1) :: (SW,Player2) :: (S,Player1) :: (SE,Player1) :: Nil
     val tme: TM[JI,Player] = TM.empty(Ord.intOrd)
     val tms = pl.foldLeft(tme) { (tm,p) => tm.set(p._1.toInt,p._2) }
-    val tb = new Board(Player.Player2, tms, 1)
+    val tb = new Board(Player.Player2, tms, 1, fj.data.Option.none())
     FixedPoint.printBoard(tb)
     val mr = tb.moveTo(N)
     val r = mr.fold(P.p(false), MoveResultCheck.keepPl(false), gameOv(true))
