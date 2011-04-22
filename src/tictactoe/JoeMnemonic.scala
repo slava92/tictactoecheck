@@ -6,8 +6,9 @@ import fj.P
 import fj.data.{TreeMap => TM}
 import fj.Ord
 import java.lang.{Integer => JI}
-
 import scala.collection.immutable.HashMap
+import scala.util.Random
+
 import Game.freeSpots
 import FixedPoint.fjF
 import Position._
@@ -18,79 +19,93 @@ object JoeMnemonic extends Strategy {
     Board.EmptyBoard.empty.moveTo(NW)
   }
   def nextPosition(b: Board): Position = {
-    game(board2key(b))
+    val moves = game(board2key(b))
+    val mi = Random.nextInt(moves.size)
+    moves.toList(mi)
+    //game(board2key(b)).head
   }
 
-  type Weight = (Int,Position)
+  type GameTree = HashMap[String,Set[Position]]
+  type Weight = Int
   val BigBang = 100
-  val hm0: HashMap[String,Position] = HashMap.empty
+  val hm0: GameTree = HashMap.empty
 
-  def endGame(p: Position): F[Board.FinishedBoard,(HashMap[String,Position], Int, Position)] = fjF { eb =>
-    val hmf = hm0 + (board2key(eb) -> p)
+  def endGame(p: Position): F[Board.FinishedBoard,(GameTree, Weight, Position)] = fjF { eb =>
+    val hmf = hm0 + (board2key(eb) -> Set(p))
     if (eb.result.isDraw) (hmf,0,p) else (hmf,BigBang - eb.nmoves,p)
   }
-  def keepPlay: F[Board,(HashMap[String,Position], Int, Position)] = fjF {b =>
-    newPos.f(b) match {
-      case (hm, wt, p) => (hm, 0-wt, p)
-    }
-  }
-  def newPos: F[Board,(HashMap[String,Position], Int, Position)] = fjF {b =>
-    val nextLevel = freeSpots(b).map { p =>
+  def newPos: F[Board,(GameTree, Weight, Position)] = fjF {b =>
+    val nextMoves = freeSpots(b).map { p =>
       b.moveTo(p).fold(
         P.p((hm0,Int.MinValue,p)),
-        newPos,
+        newPos.andThen(fjF {tp=>(tp._1,0-tp._2,p)}),
         endGame(p)
       )
     }.sortWith {_._2 < _._2}.reverse
-    val recommend = nextLevel(0)._3
-    val hmn: HashMap[String,Position] = nextLevel.foldLeft(hm0) { (hm, tpl) =>
-      hm ++ tpl._1
-    } + (board2key(b) -> recommend)
-    (hmn, nextLevel(0)._2, recommend)
+    val r0 = nextMoves.span(_._2 == nextMoves(0)._2)
+    val recommend = r0._1.toSet //nextMoves(0)._3
+    val hmn: GameTree = nextMoves.foldLeft(hm0+(board2key(b)->recommend.map {_._3})) { (hm, tpl) =>
+      //hm ++ tpl._1
+      joinMaps(hm, tpl._1)
+    } // + (board2key(b) -> recommend.map {_._3})
+    (hmn, nextMoves(0)._2, recommend.head._3)
   }
-
   def collectMoves = {
-    val bs: Array[(HashMap[String,Position], Int, Position)] = Position.values.take(100).map { p =>
-      //val p = Position.NW
-      printf("Analyzing %c (%s)\n", p.toChar, board2key(Board.EmptyBoard.empty.moveTo(p)))
-      val np = newPos.f(Board.EmptyBoard.empty.moveTo(p))
-      (np._1, np._2, p)
+    val bs: Array[(GameTree, Weight, Position)] = Position.values.take(100).map { p =>
+      //val p = Position.SW
+      val firstBoard = Board.EmptyBoard.empty.moveTo(p)
+      printf("Analyzing %c (%s)\n", p.toChar, board2key(firstBoard))
+      newPos.andThen(fjF {tp=>(tp._1,tp._2,p)}).f(firstBoard)
     }.sortWith {_._2 < _._2}.reverse
     val recommend = bs(0)._3
-    val hmn: HashMap[String,Position] = bs.foldLeft(hm0) { (hm, tpl) =>
-      hm ++ tpl._1
-    } + ("00" -> recommend)
-    (hmn, bs(0)._2, recommend)
+    val hmn: GameTree = bs.foldLeft(hm0+("00"->Set(recommend))) { (hm, tpl) =>
+      //hm ++ tpl._1
+      joinMaps(hm, tpl._1)
+    } // + ("00" -> Set(recommend))
+    (hmn, bs(0)._2, Set(recommend))
   }
-
+  def joinMaps(m1: GameTree, m2: GameTree): GameTree = {
+    m2.foldLeft(m1) { (m, kv) =>
+      updateMap(m, kv._1, kv._2)
+    }
+  }
+  def updateMap(m: GameTree, k: String, v:Set[Position]): GameTree = {
+    m + (k -> (v ++ m.getOrElse(k, Set.empty)))
+  }
   def board2key(b: BoardLike): String = {
-    val bs = b.occupiedPositions.foldLeft(
+    b.occupiedPositions.foldLeft(
       new F2[String,Position,String] { def f(z: String, p0: Position) = {
           p0.toChar +: b.playerAt(p0).some().toSymbol +: z
         }
-      },
-      "")
-    bs
+      }
+      , "")
   }
 
-  val game = {
+  val game: GameTree = {
     val gameIn = JoeMnemonic.getClass().getResourceAsStream("JoeMnemonic.game")
-    val game = scala.io.Source.fromInputStream(gameIn).getLines.foldLeft(hm0) { (b, a) =>
+    scala.io.Source.fromInputStream(gameIn).getLines.foldLeft(hm0) { (b, a) =>
       val ts = a.split(' ')
-      if (3 == ts.size) {
-	b + (ts(0) -> Position.valueOf(ts(2)))
+      if (2 == ts.size) {
+	//b + (ts(0) -> Set(Position.valueOf(ts(2))))
+	b + (ts(0) -> ts(1).split(',').map(Position.valueOf(_)).toSet)
       } else {
 	printf("Malformed game line: '%s'\n", a)
 	b
       }
     }
-    game
   }
 
   def main(args: Array[String]): Unit = {
-    if (false) {
+    if (true) {
       //print(game.mkString("\n"))
-      print(game.size)
+      println(game.size)
+    }
+    if (false) {
+      val m1 = updateMap(hm0, "0", (Set(1,2).map {Position.fromInt(_).some}))
+      val m2 = updateMap(hm0, "0", (Set(3,4).map {Position.fromInt(_).some}))
+      println(joinMaps(m2,m1).mkString("\n"))
+      val m3 = updateMap(m1, "0", (Set(5,6).map {Position.fromInt(_).some}))
+      println(m3.mkString("\n"))
     }
     if (false) {
 // X O X
@@ -98,31 +113,34 @@ object JoeMnemonic extends Strategy {
 // O _ X
       val pl: List[(Position,Player)] = (NW,Player1)::(N,Player2)::(NE,Player1)::(C,Player2)::(SW,Player2)::(SE,Player1)::Nil
       val nextTurn = Player1
-// X _ _ 
-// _ X O 
-// _ _ _ 
-      //val pl: List[(Position,Player)] = (NW,Player1)::(C,Player1)::(E,Player2)::Nil
-      //val nextTurn = Player2
-      //val pl: List[(Position,Player)] = (NW,Player1)::Nil
+      //val pl: List[(Position,Player)] = (SW,Player1)::Nil
       //val nextTurn = Player2
 
       val tme: TM[JI,Player] = TM.empty(Ord.intOrd)
       val tms = pl.foldLeft(tme) { (tm,p) => tm.set(p._1.toInt,p._2) }
-      val tb = new Board(nextTurn, tms, 6)
+      val pb: fj.data.Option[Board] = fj.data.Option.none()
+      val tb = new Board(nextTurn, tms, 6, pb)
       FixedPoint.printBoard(tb)
-      val r: (HashMap[String,Position], Int, Position) = newPos.f(tb)
+      val r: (GameTree, Weight, Position) = newPos.f(tb)
       r match {
 	case (hm, wt, p) =>
 	  printf("First move is %c (%d)\n", p.toChar, wt)
-	print(hm.mkString("\n"))
+	  hm.foreach { _ match {
+	    case (k,v) => printf("%s %s\n", k, v.mkString(","))
+	  }
+	}
       }
     }
 
-    if (true) {
+    if (false) {
       collectMoves match {
-	case (hm, wt, p) =>
-	  printf("First move is %c (%d)\n", p.toChar, wt)
-	print(hm.mkString("\n"))
+	case (hm, wt, ps) =>
+	  printf("First move is %c (%d)\n", ps.head.toChar, wt)
+	  //print(hm.mkString("\n"))
+	  hm.foreach { _ match {
+	    case (k,v) => printf("%s %s\n", k, v.mkString(","))
+	  }
+	}
       }
     }
   }
