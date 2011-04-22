@@ -66,7 +66,8 @@ object JaneDoe extends Strategy {
     val pl: List[(Position,Player)] = (NW,Player1) :: (C,Player2) :: (SE,Player1) :: Nil
     val tme: TM[JI,Player] = TM.empty(Ord.intOrd)
     val tms = pl.foldLeft(tme) { (tm,p) => tm.set(p._1.toInt,p._2) }
-    val tb = new Board(Player.Player2, tms, 5)
+    val pb: fj.data.Option[Board] = fj.data.Option.none()
+    val tb = new Board(Player.Player2, tms, 5, pb)
     //ttt.PlayTest.printBoard(tb)
     printf("next move for %s: %s\n", tb.whoseTurn.toString, JaneDoe.nextPosition(tb).toString)
   }
