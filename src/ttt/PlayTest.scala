@@ -17,12 +17,13 @@ object PlayTest {
 
   def main(args: Array[String]): Unit = {
     //val s1 = JohnDoe
-    val s1 = RandomMoves
+    //val s1 = RandomMoves
     //val s2 = JaneDoe
     //val s2 = JohnDoe
     val s2 = JoeMnemonic
-    //oneGame(s1,s2)
-    tourney(s1, s2, 1000)
+    val s1 = JoeMnemonic
+    oneGame(s1,s2)
+    //tourney(s1, s2, 1000)
   }
 
   def oneGame(s1: Strategy, s2: Strategy) {

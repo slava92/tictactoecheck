@@ -15,14 +15,16 @@ import Position._
 import Player._
 
 object JoeMnemonic extends Strategy {
+  val rnd = new Random(System.currentTimeMillis)
   def firstMove(): Board = {
-    Board.EmptyBoard.empty.moveTo(NW)
+    val moves = game("00")
+    val mi = rnd.nextInt(moves.size)
+    Board.EmptyBoard.empty.moveTo(moves.toList(mi))
   }
   def nextPosition(b: Board): Position = {
     val moves = game(board2key(b))
-    val mi = Random.nextInt(moves.size)
+    val mi = rnd.nextInt(moves.size)
     moves.toList(mi)
-    //game(board2key(b)).head
   }
 
   type GameTree = HashMap[String,Set[Position]]
@@ -43,11 +45,10 @@ object JoeMnemonic extends Strategy {
       )
     }.sortWith {_._2 < _._2}.reverse
     val r0 = nextMoves.span(_._2 == nextMoves(0)._2)
-    val recommend = r0._1.toSet //nextMoves(0)._3
+    val recommend = r0._1.toSet
     val hmn: GameTree = nextMoves.foldLeft(hm0+(board2key(b)->recommend.map {_._3})) { (hm, tpl) =>
-      //hm ++ tpl._1
       joinMaps(hm, tpl._1)
-    } // + (board2key(b) -> recommend.map {_._3})
+    }
     (hmn, nextMoves(0)._2, recommend.head._3)
   }
   def collectMoves = {
@@ -57,12 +58,12 @@ object JoeMnemonic extends Strategy {
       printf("Analyzing %c (%s)\n", p.toChar, board2key(firstBoard))
       newPos.andThen(fjF {tp=>(tp._1,tp._2,p)}).f(firstBoard)
     }.sortWith {_._2 < _._2}.reverse
-    val recommend = bs(0)._3
-    val hmn: GameTree = bs.foldLeft(hm0+("00"->Set(recommend))) { (hm, tpl) =>
-      //hm ++ tpl._1
+    val r0 = bs.span(_._2 == bs(0)._2)
+    val recommend = r0._1.toSet
+    val hmn: GameTree = bs.foldLeft(hm0+("00"->recommend.map {_._3})) { (hm, tpl) =>
       joinMaps(hm, tpl._1)
-    } // + ("00" -> Set(recommend))
-    (hmn, bs(0)._2, Set(recommend))
+    }
+    (hmn, bs(0)._2, recommend.map {_._3})
   }
   def joinMaps(m1: GameTree, m2: GameTree): GameTree = {
     m2.foldLeft(m1) { (m, kv) =>
@@ -86,7 +87,6 @@ object JoeMnemonic extends Strategy {
     scala.io.Source.fromInputStream(gameIn).getLines.foldLeft(hm0) { (b, a) =>
       val ts = a.split(' ')
       if (2 == ts.size) {
-	//b + (ts(0) -> Set(Position.valueOf(ts(2))))
 	b + (ts(0) -> ts(1).split(',').map(Position.valueOf(_)).toSet)
       } else {
 	printf("Malformed game line: '%s'\n", a)
@@ -97,7 +97,6 @@ object JoeMnemonic extends Strategy {
 
   def main(args: Array[String]): Unit = {
     if (true) {
-      //print(game.mkString("\n"))
       println(game.size)
     }
     if (false) {
@@ -132,7 +131,7 @@ object JoeMnemonic extends Strategy {
       }
     }
 
-    if (false) {
+    if (true) {
       collectMoves match {
 	case (hm, wt, ps) =>
 	  printf("First move is %c (%d)\n", ps.head.toChar, wt)
